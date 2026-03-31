@@ -12,6 +12,14 @@ Add and subtract numbers up to 99 against the clock.
 
 [Play →](math-blitz/index.html)
 
+### 🧠 Pattern Memory
+Watch a sequence of colored tiles light up — then repeat it in order.
+- 3 modes: Classic (4 tiles), Hard (6 tiles), Chaos (9 tiles)
+- Endless levels — sequence grows by 1 each round
+- Lives system — mess up and replay or game over
+
+[Play →](pattern-memory/index.html)
+
 ## Running Locally
 
 Just open `index.html` in any browser — no server needed.
