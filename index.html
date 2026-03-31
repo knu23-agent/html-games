@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTML Games</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 { font-size: 2rem; margin-bottom: 10px; color: #e94560; }
+    p { color: #aaa; margin-bottom: 30px; }
+    .games-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .game-card {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 12px;
+      padding: 30px;
+      width: 220px;
+      text-align: center;
+      text-decoration: none;
+      color: #eee;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .game-card:hover { transform: translateY(-4px); border-color: #e94560; }
+    .game-card .icon { font-size: 3rem; margin-bottom: 12px; }
+    .game-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+    .game-card p { font-size: 0.85rem; color: #888; margin: 0; }
+  </style>
+</head>
+<body>
+  <h1>🎮 HTML Games</h1>
+  <p>Simple browser games — no installs, no nonsense.</p>
+  <div class="games-grid">
+    <a class="game-card" href="math-blitz/index.html">
+      <div class="icon">🔢</div>
+      <h2>Math Blitz</h2>
+      <p>Add &amp; subtract numbers up to 99. Beat the clock!</p>
+    </a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Math Blitz</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    a.back {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      color: #aaa;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    a.back:hover { color: #e94560; }
+
+    h1 {
+      font-size: 2.2rem;
+      color: #e94560;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+
+    /* ── SCREEN WRAPPER ── */
+    .screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 460px;
+    }
+    .screen.active { display: flex; }
+
+    /* ── START SCREEN ── */
+    .difficulty-grid {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .diff-btn {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      color: #eee;
+      border-radius: 8px;
+      padding: 12px 22px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .diff-btn:hover, .diff-btn.selected {
+      border-color: #e94560;
+      background: #0f3460;
+    }
+
+    .start-btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 40px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .start-btn:hover { background: #c73652; }
+
+    /* ── GAME SCREEN ── */
+    .hud {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      margin-bottom: 20px;
+      font-size: 1rem;
+    }
+    .hud span { color: #aaa; }
+    .hud span b { color: #eee; }
+
+    .timer-bar-wrap {
+      width: 100%;
+      height: 8px;
+      background: #0f3460;
+      border-radius: 4px;
+      margin-bottom: 28px;
+      overflow: hidden;
+    }
+    .timer-bar {
+      height: 100%;
+      background: #e94560;
+      border-radius: 4px;
+      transition: width 0.1s linear, background 0.3s;
+    }
+
+    .question-box {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 16px;
+      padding: 32px 40px;
+      text-align: center;
+      margin-bottom: 24px;
+      width: 100%;
+    }
+    .question-box .expr {
+      font-size: 3rem;
+      font-weight: bold;
+      letter-spacing: 4px;
+      margin-bottom: 20px;
+    }
+    .question-box input {
+      width: 120px;
+      text-align: center;
+      font-size: 2rem;
+      background: #1a1a2e;
+      border: 2px solid #0f3460;
+      border-radius: 8px;
+      color: #eee;
+      padding: 8px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .question-box input:focus { border-color: #e94560; }
+    .question-box input.correct { border-color: #4caf50; animation: flash-green 0.3s; }
+    .question-box input.wrong   { border-color: #e94560; animation: shake 0.3s; }
+
+    @keyframes flash-green {
+      0%,100% { background: #1a1a2e; }
+      50%      { background: #1b3a1b; }
+    }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      25%      { transform: translateX(-8px); }
+      75%      { transform: translateX(8px); }
+    }
+
+    .feedback {
+      font-size: 1rem;
+      height: 24px;
+      margin-bottom: 8px;
+      color: #aaa;
+    }
+    .feedback.correct { color: #4caf50; }
+    .feedback.wrong   { color: #e94560; }
+
+    .submit-btn {
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 36px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .submit-btn:hover { background: #c73652; }
+
+    /* ── RESULT SCREEN ── */
+    .result-box {
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 16px;
+      padding: 36px 40px;
+      text-align: center;
+      width: 100%;
+      margin-bottom: 24px;
+    }
+    .result-box .big { font-size: 4rem; margin-bottom: 8px; }
+    .result-box h2   { font-size: 1.6rem; margin-bottom: 16px; color: #e94560; }
+    .result-box .stats { font-size: 1rem; color: #aaa; line-height: 1.8; }
+    .result-box .stats b { color: #eee; }
+
+    .btn-row { display: flex; gap: 12px; }
+    .btn-row button {
+      flex: 1;
+      background: #16213e;
+      border: 2px solid #0f3460;
+      color: #eee;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .btn-row button:hover { border-color: #e94560; }
+    .btn-row button.primary {
+      background: #e94560;
+      border-color: #e94560;
+    }
+    .btn-row button.primary:hover { background: #c73652; }
+  </style>
+</head>
+<body>
+  <a class="back" href="../index.html">← All Games</a>
+  <h1>🔢 Math Blitz</h1>
+  <p class="subtitle">Add &amp; subtract numbers up to 99 — fast!</p>
+
+  <!-- START SCREEN -->
+  <div class="screen active" id="screen-start">
+    <p style="margin-bottom:14px; color:#aaa;">Choose difficulty:</p>
+    <div class="difficulty-grid">
+      <button class="diff-btn selected" data-diff="easy">😊 Easy<br><small>60 s · +/− 0–9</small></button>
+      <button class="diff-btn" data-diff="medium">🔥 Medium<br><small>45 s · +/− 0–50</small></button>
+      <button class="diff-btn" data-diff="hard">💀 Hard<br><small>30 s · +/− 0–99</small></button>
+    </div>
+    <button class="start-btn" id="btn-start">Start Game</button>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div class="screen" id="screen-game">
+    <div class="hud">
+      <span>⏱ <b id="hud-time">60</b>s</span>
+      <span>✅ <b id="hud-correct">0</b></span>
+      <span>❌ <b id="hud-wrong">0</b></span>
+      <span>🔢 Q<b id="hud-q">1</b></span>
+    </div>
+    <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar"></div></div>
+    <div class="question-box">
+      <div class="expr" id="expr">—</div>
+      <input type="number" id="answer-input" placeholder="?" autocomplete="off" />
+    </div>
+    <div class="feedback" id="feedback"></div>
+    <button class="submit-btn" id="btn-submit">Submit</button>
+  </div>
+
+  <!-- RESULT SCREEN -->
+  <div class="screen" id="screen-result">
+    <div class="result-box">
+      <div class="big" id="result-emoji">🏆</div>
+      <h2 id="result-title">Time's up!</h2>
+      <div class="stats" id="result-stats"></div>
+    </div>
+    <div class="btn-row">
+      <button id="btn-again" class="primary">▶ Play Again</button>
+      <button id="btn-menu">🏠 Menu</button>
+    </div>
+  </div>
+
+  <script>
+    // ── CONFIG PER DIFFICULTY ──
+    const DIFF = {
+      easy:   { time: 60, max: 9  },
+      medium: { time: 45, max: 50 },
+      hard:   { time: 30, max: 99 },
+    };
+
+    // ── STATE ──
+    let diff = 'easy';
+    let timer, timeLeft, totalTime;
+    let correct = 0, wrong = 0, qNum = 1;
+    let currentAnswer;
+
+    // ── ELEMENTS ──
+    const screens  = { start: 'screen-start', game: 'screen-game', result: 'screen-result' };
+    const $         = id => document.getElementById(id);
+
+    function show(name) {
+      Object.values(screens).forEach(id => $( id).classList.remove('active'));
+      $(screens[name]).classList.add('active');
+    }
+
+    // ── DIFFICULTY SELECTION ──
+    document.querySelectorAll('.diff-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        diff = btn.dataset.diff;
+      });
+    });
+
+    // ── START ──
+    $('btn-start').addEventListener('click', startGame);
+
+    function startGame() {
+      const cfg = DIFF[diff];
+      timeLeft  = cfg.time;
+      totalTime = cfg.time;
+      correct   = 0;
+      wrong     = 0;
+      qNum      = 1;
+
+      show('game');
+      updateHud();
+      nextQuestion();
+      startTimer();
+    }
+
+    // ── TIMER ──
+    function startTimer() {
+      clearInterval(timer);
+      timer = setInterval(() => {
+        timeLeft--;
+        $('hud-time').textContent = timeLeft;
+        const pct = (timeLeft / totalTime) * 100;
+        $('timer-bar').style.width = pct + '%';
+        $('timer-bar').style.background = pct > 40 ? '#e94560' : pct > 20 ? '#f5a623' : '#ff3b30';
+        if (timeLeft <= 0) endGame();
+      }, 1000);
+    }
+
+    // ── QUESTION ──
+    function nextQuestion() {
+      const cfg = DIFF[diff];
+      const a = rand(0, cfg.max);
+      const b = rand(0, cfg.max);
+      const op = Math.random() < 0.5 ? '+' : '−';
+      currentAnswer = op === '+' ? a + b : a - b;
+      $('expr').textContent = `${a} ${op} ${b} =`;
+      const input = $('answer-input');
+      input.value = '';
+      input.className = '';
+      $('feedback').textContent = '';
+      $('feedback').className = 'feedback';
+      setTimeout(() => input.focus(), 50);
+      $('hud-q').textContent = qNum;
+    }
+
+    function rand(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // ── SUBMIT ──
+    $('btn-submit').addEventListener('click', submitAnswer);
+    $('answer-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitAnswer(); });
+
+    function submitAnswer() {
+      const input  = $('answer-input');
+      const val    = input.value.trim();
+      if (val === '') return;
+      const guess  = parseInt(val, 10);
+      const fb     = $('feedback');
+
+      if (guess === currentAnswer) {
+        correct++;
+        input.classList.add('correct');
+        fb.textContent = '✓ Correct!';
+        fb.className   = 'feedback correct';
+      } else {
+        wrong++;
+        input.classList.add('wrong');
+        fb.textContent = `✗ Answer was ${currentAnswer}`;
+        fb.className   = 'feedback wrong';
+      }
+      updateHud();
+      qNum++;
+      setTimeout(nextQuestion, 600);
+    }
+
+    function updateHud() {
+      $('hud-correct').textContent = correct;
+      $('hud-wrong').textContent   = wrong;
+    }
+
+    // ── END ──
+    function endGame() {
+      clearInterval(timer);
+      show('result');
+
+      const total    = correct + wrong;
+      const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+      let emoji = '😅', title = 'Nice try!';
+      if (accuracy === 100 && correct >= 10) { emoji = '🏆'; title = 'Perfect!'; }
+      else if (accuracy >= 80)               { emoji = '🎉'; title = 'Great job!'; }
+      else if (accuracy >= 60)               { emoji = '👍'; title = 'Good effort!'; }
+
+      $('result-emoji').textContent = emoji;
+      $('result-title').textContent = title;
+      $('result-stats').innerHTML   =
+        `<b>${correct}</b> correct &nbsp;·&nbsp; <b>${wrong}</b> wrong<br>` +
+        `<b>${total}</b> questions in <b>${totalTime}</b>s<br>` +
+        `Accuracy: <b>${accuracy}%</b>`;
+    }
+
+    $('btn-again').addEventListener('click', startGame);
+    $('btn-menu').addEventListener('click', () => show('start'));
+  </script>
+</body>
+</html>
