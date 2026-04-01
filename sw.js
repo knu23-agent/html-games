@@ -1,19 +1,21 @@
-const CACHE = 'html-games-v2';
+const CACHE = 'html-games-v3';
+const BASE = '/html-games';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/favicon.svg',
-  '/math-blitz/index.html',
-  '/pattern-memory/index.html',
-  '/memory-match/index.html',
-  '/word-scramble/index.html',
-  '/typing-rain/index.html',
-  '/penguin-pursuit/index.html',
-  '/lost-in-migration/index.html',
-  '/eye-spy/index.html',
+  BASE + '/',
+  BASE + '/index.html',
+  BASE + '/favicon.svg',
+  BASE + '/manifest.json',
+  BASE + '/math-blitz/index.html',
+  BASE + '/pattern-memory/index.html',
+  BASE + '/memory-match/index.html',
+  BASE + '/word-scramble/index.html',
+  BASE + '/typing-rain/index.html',
+  BASE + '/penguin-pursuit/index.html',
+  BASE + '/lost-in-migration/index.html',
+  BASE + '/eye-spy/index.html',
 ];
 
-// Install: cache all assets
+// Install: pre-cache every game immediately
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(ASSETS))
@@ -21,7 +23,7 @@ self.addEventListener('install', e => {
   self.skipWaiting();
 });
 
-// Activate: remove old caches
+// Activate: wipe old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -31,7 +33,7 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Fetch: cache-first strategy
+// Fetch: cache-first, fall back to network
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request))
