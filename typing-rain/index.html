@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Typing Rain</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;overflow:hidden}
+    a.back{position:fixed;top:16px;left:16px;color:#aaa;text-decoration:none;font-size:.9rem;z-index:10}
+    a.back:hover{color:#e94560}
+    h1{font-size:2.2rem;color:#e94560;margin-bottom:6px}
+    .subtitle{color:#888;font-size:.9rem;margin-bottom:28px}
+    .screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:500px}
+    .screen.active{display:flex}
+
+    /* START */
+    .diff-grid{display:flex;gap:12px;margin-bottom:26px;flex-wrap:wrap;justify-content:center}
+    .diff-btn{background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:14px 22px;cursor:pointer;font-size:.95rem;text-align:center;transition:border-color .2s,background .2s;min-width:110px}
+    .diff-btn:hover,.diff-btn.selected{border-color:#e94560;background:#0f3460}
+    .diff-btn small{display:block;color:#888;font-size:.78rem;margin-top:4px}
+    .start-btn{background:#e94560;color:#fff;border:none;border-radius:10px;padding:14px 44px;font-size:1.2rem;cursor:pointer;transition:background .2s}
+    .start-btn:hover{background:#c73652}
+
+    /* GAME */
+    #screen-game{position:relative;max-width:100%;width:100%}
+    .game-hud{display:flex;justify-content:space-between;width:100%;margin-bottom:10px;font-size:1rem;max-width:560px}
+    .game-hud span{color:#aaa}.game-hud span b{color:#eee}
+
+    #canvas-wrap{position:relative;width:100%;max-width:560px}
+    canvas{display:block;border-radius:12px;background:#0d0d1a;border:2px solid #0f3460;width:100%;height:auto}
+
+    .type-row{display:flex;gap:10px;align-items:center;margin-top:12px;width:100%;max-width:560px}
+    #type-input{flex:1;background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px 16px;font-size:1.2rem;outline:none;transition:border-color .2s}
+    #type-input:focus{border-color:#e94560}
+    #type-input.hit{border-color:#4caf50;background:#0d3b1e}
+    #type-input.miss{border-color:#e94560;animation:shake .2s}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+
+    /* RESULT */
+    .result-box{background:#16213e;border:2px solid #0f3460;border-radius:16px;padding:36px 40px;text-align:center;width:100%;margin-bottom:24px}
+    .result-box .big{font-size:4rem;margin-bottom:8px}
+    .result-box h2{font-size:1.6rem;margin-bottom:16px;color:#e94560}
+    .result-box .stats{font-size:1rem;color:#aaa;line-height:1.9}
+    .result-box .stats b{color:#eee}
+    .btn-row{display:flex;gap:12px;width:100%}
+    .btn-row button{flex:1;background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px;font-size:1rem;cursor:pointer;transition:border-color .2s}
+    .btn-row button:hover{border-color:#e94560}
+    .btn-row button.primary{background:#e94560;border-color:#e94560}
+    .btn-row button.primary:hover{background:#c73652}
+  </style>
+</head>
+<body>
+<a class="back" href="../index.html">← All Games</a>
+<h1>⌨️ Typing Rain</h1>
+<p class="subtitle">Type the falling words before they hit the ground!</p>
+
+<!-- START -->
+<div class="screen active" id="screen-start">
+  <p style="color:#aaa;margin-bottom:14px">Choose difficulty:</p>
+  <div class="diff-grid">
+    <button class="diff-btn selected" data-diff="easy">😊 Easy<br><small>Short words · slow</small></button>
+    <button class="diff-btn" data-diff="medium">🔥 Medium<br><small>Longer words · faster</small></button>
+    <button class="diff-btn" data-diff="hard">💀 Hard<br><small>Many words · fast</small></button>
+  </div>
+  <button class="start-btn" id="btn-start">Start Game</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="game-hud">
+    <span>⭐ Score: <b id="hud-score">0</b></span>
+    <span>❤️ Lives: <b id="hud-lives">5</b></span>
+    <span>⏱ <b id="hud-time">60</b>s</span>
+  </div>
+  <div id="canvas-wrap"><canvas id="canvas" width="560" height="380"></canvas></div>
+  <div class="type-row">
+    <input id="type-input" type="text" placeholder="Type here…" autocomplete="off" spellcheck="false"/>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-box">
+    <div class="big" id="result-emoji">🎉</div>
+    <h2 id="result-title">Game Over</h2>
+    <div class="stats" id="result-stats"></div>
+  </div>
+  <div class="btn-row">
+    <button class="primary" id="btn-again">▶ Play Again</button>
+    <button id="btn-menu">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// ── WORD BANKS ──
+const EASY_WORDS=['cat','dog','sun','hat','run','big','red','fly','fun','yes','cow','pig','ant','bee','egg','sky','car','bus','cup','bat','map','arm','leg','eye','lip','toe','net','web','box','fox'];
+const MEDIUM_WORDS=['apple','grape','table','happy','water','cloud','bread','river','music','dance','horse','tiger','pizza','money','phone','chair','plant','stone','magic','light','night','dream','smile','laugh','space','ocean','brain','fruit','party','shoes'];
+const HARD_WORDS=['rainbow','dolphin','library','kitchen','blanket','captain','diamond','balloon','chicken','monster','volcano','penguin','mystery','drawing','hunting','jumping','outside','morning','teacher','flowers','holiday','reading','bedtime','present','brother','bicycle','spelling','thinking','swimming','together'];
+
+const DIFF = {
+  easy:   {words:EASY_WORDS,   speed:55, interval:2200, lives:5, time:60, maxOnScreen:4},
+  medium: {words:MEDIUM_WORDS, speed:75, interval:1800, lives:4, time:60, maxOnScreen:5},
+  hard:   {words:HARD_WORDS,   speed:95, interval:1400, lives:3, time:60, maxOnScreen:6},
+};
+
+const $ = id=>document.getElementById(id);
+let diff='easy', cfg;
+let drops=[], score=0, lives=0, timeLeft=0;
+let gameTimer, spawnTimer, raf;
+let totalWords=0, hitWords=0;
+
+const canvas=$('canvas');
+const ctx=canvas.getContext('2d');
+const W=canvas.width, H=canvas.height;
+
+// COLORS for words
+const COLORS=['#f5a623','#4caf50','#2196f3','#e91e63','#00bcd4','#9c27b0','#ff5722'];
+
+function show(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('screen-'+name).classList.add('active');
+}
+
+document.querySelectorAll('.diff-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));
+    btn.classList.add('selected');
+    diff=btn.dataset.diff;
+  });
+});
+
+$('btn-start').addEventListener('click',startGame);
+$('btn-again').addEventListener('click',startGame);
+$('btn-menu').addEventListener('click',()=>{stopGame();show('start');});
+
+$('type-input').addEventListener('input',onType);
+
+function startGame(){
+  cfg=DIFF[diff];
+  drops=[]; score=0; lives=cfg.lives; timeLeft=cfg.time;
+  totalWords=0; hitWords=0;
+  clearInterval(gameTimer); clearInterval(spawnTimer); cancelAnimationFrame(raf);
+  $('hud-score').textContent=0;
+  $('hud-lives').textContent=lives;
+  $('hud-time').textContent=timeLeft;
+  $('type-input').value='';
+  $('type-input').className='';
+  show('game');
+  setTimeout(()=>$('type-input').focus(),100);
+
+  gameTimer=setInterval(()=>{
+    timeLeft--;
+    $('hud-time').textContent=timeLeft;
+    if(timeLeft<=0) endGame('time');
+  },1000);
+
+  spawnTimer=setInterval(spawnDrop, cfg.interval);
+  spawnDrop(); // immediate first word
+  loop();
+}
+
+function stopGame(){
+  clearInterval(gameTimer);
+  clearInterval(spawnTimer);
+  cancelAnimationFrame(raf);
+}
+
+function spawnDrop(){
+  if(drops.length>=cfg.maxOnScreen) return;
+  const pool=cfg.words.filter(w=>!drops.find(d=>d.word===w));
+  if(!pool.length) return;
+  const word=pool[Math.floor(Math.random()*pool.length)];
+  const fontSize=20;
+  ctx.font=`bold ${fontSize}px 'Segoe UI'`;
+  const tw=ctx.measureText(word).width;
+  const x=Math.random()*(W-tw-20)+10;
+  drops.push({word, x, y:-10, vy:cfg.speed/60, color:COLORS[Math.floor(Math.random()*COLORS.length)], fontSize, tw});
+  totalWords++;
+}
+
+function loop(){
+  ctx.clearRect(0,0,W,H);
+  // danger zone
+  ctx.fillStyle='rgba(233,69,96,0.08)';
+  ctx.fillRect(0,H-36,W,36);
+  ctx.strokeStyle='rgba(233,69,96,0.3)';
+  ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(0,H-36); ctx.lineTo(W,H-36); ctx.stroke();
+  ctx.setLineDash([]);
+
+  const input=$('type-input').value.toLowerCase().trim();
+
+  drops.forEach(d=>{
+    d.y+=d.vy;
+    // highlight if input matches start of word
+    const match=input.length>0 && d.word.toLowerCase().startsWith(input);
+    ctx.font=`bold ${d.fontSize}px 'Segoe UI'`;
+    // shadow
+    ctx.shadowColor='rgba(0,0,0,0.6)';
+    ctx.shadowBlur=6;
+    if(match){
+      // typed portion in white, rest in color
+      const typed=input.length;
+      ctx.fillStyle='#fff';
+      ctx.fillText(d.word.slice(0,typed), d.x, d.y);
+      const tw2=ctx.measureText(d.word.slice(0,typed)).width;
+      ctx.fillStyle=d.color;
+      ctx.fillText(d.word.slice(typed), d.x+tw2, d.y);
+    } else {
+      ctx.fillStyle=d.color;
+      ctx.fillText(d.word, d.x, d.y);
+    }
+    ctx.shadowBlur=0;
+  });
+
+  // remove drops that hit ground
+  const before=drops.length;
+  drops=drops.filter(d=>{
+    if(d.y>H+10){
+      lives--;
+      $('hud-lives').textContent=lives;
+      if(lives<=0){ endGame('lives'); return false; }
+      return false;
+    }
+    return true;
+  });
+
+  if(timeLeft>0 && lives>0) raf=requestAnimationFrame(loop);
+}
+
+function onType(e){
+  const val=e.target.value.toLowerCase().trim();
+  const hit=drops.findIndex(d=>d.word.toLowerCase()===val);
+  if(hit!==-1){
+    drops.splice(hit,1);
+    score++;
+    hitWords++;
+    $('hud-score').textContent=score;
+    $('type-input').value='';
+    $('type-input').className='hit';
+    setTimeout(()=>$('type-input').className='',300);
+  }
+}
+
+function endGame(reason){
+  stopGame();
+  const acc=totalWords>0?Math.round((hitWords/totalWords)*100):0;
+  let emoji='😅',title='Game Over!';
+  if(reason==='time' && acc>=80){emoji='🏆';title='Amazing typing!';}
+  else if(acc>=60){emoji='🎉';title='Great job!';}
+  else if(acc>=40){emoji='👍';title='Good effort!';}
+  $('result-emoji').textContent=emoji;
+  $('result-title').textContent=title;
+  $('result-stats').innerHTML=`Score: <b>${score}</b> words<br>Accuracy: <b>${acc}%</b><br>Difficulty: <b>${diff.charAt(0).toUpperCase()+diff.slice(1)}</b>`;
+  setTimeout(()=>show('result'),400);
+}
+</script>
+</body>
+</html>

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>HTML Games</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml"/>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -15,47 +16,101 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      padding: 20px;
+      padding: 30px 20px;
     }
-    h1 { font-size: 2rem; margin-bottom: 10px; color: #e94560; }
-    p { color: #aaa; margin-bottom: 30px; }
+    h1 { font-size: 2.4rem; margin-bottom: 8px; color: #e94560; }
+    .tagline { color: #aaa; margin-bottom: 10px; }
+    .section-label {
+      width: 100%;
+      max-width: 600px;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #555;
+      margin: 24px 0 12px;
+    }
     .games-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 20px;
+      gap: 18px;
       justify-content: center;
+      max-width: 640px;
     }
     .game-card {
       background: #16213e;
       border: 2px solid #0f3460;
-      border-radius: 12px;
-      padding: 30px;
-      width: 220px;
+      border-radius: 14px;
+      padding: 24px 20px;
+      width: 175px;
       text-align: center;
       text-decoration: none;
       color: #eee;
       transition: transform 0.2s, border-color 0.2s;
     }
-    .game-card:hover { transform: translateY(-4px); border-color: #e94560; }
-    .game-card .icon { font-size: 3rem; margin-bottom: 12px; }
-    .game-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
-    .game-card p { font-size: 0.85rem; color: #888; margin: 0; }
+    .game-card:hover { transform: translateY(-5px); border-color: #e94560; }
+    .game-card .icon { font-size: 2.8rem; margin-bottom: 10px; }
+    .game-card h2 { font-size: 1rem; margin-bottom: 5px; }
+    .game-card p { font-size: .78rem; color: #777; line-height: 1.4; }
+    .badge {
+      display: inline-block;
+      font-size: .65rem;
+      background: #e94560;
+      color: #fff;
+      border-radius: 4px;
+      padding: 2px 6px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    footer { margin-top: 40px; color: #444; font-size: .8rem; }
   </style>
 </head>
 <body>
   <h1>🎮 HTML Games</h1>
-  <p>Simple browser games — no installs, no nonsense.</p>
+  <p class="tagline">Fun & educational games — no installs needed!</p>
+
+  <div class="section-label">🧮 Math & Numbers</div>
   <div class="games-grid">
     <a class="game-card" href="math-blitz/index.html">
       <div class="icon">🔢</div>
+      <div class="badge">Math</div>
       <h2>Math Blitz</h2>
       <p>Add &amp; subtract numbers up to 99. Beat the clock!</p>
     </a>
+  </div>
+
+  <div class="section-label">🧠 Memory & Focus</div>
+  <div class="games-grid">
     <a class="game-card" href="pattern-memory/index.html">
       <div class="icon">🧠</div>
+      <div class="badge">Memory</div>
       <h2>Pattern Memory</h2>
-      <p>Watch the tile pattern light up — then repeat it from memory!</p>
+      <p>Watch the tiles light up and repeat the sequence!</p>
+    </a>
+    <a class="game-card" href="memory-match/index.html">
+      <div class="icon">🃏</div>
+      <div class="badge">Memory</div>
+      <h2>Memory Match</h2>
+      <p>Flip cards to find all the matching emoji pairs!</p>
     </a>
   </div>
+
+  <div class="section-label">📖 Language & Typing</div>
+  <div class="games-grid">
+    <a class="game-card" href="word-scramble/index.html">
+      <div class="icon">🔤</div>
+      <div class="badge">Words</div>
+      <h2>Word Scramble</h2>
+      <p>Unscramble the jumbled letters to find the word!</p>
+    </a>
+    <a class="game-card" href="typing-rain/index.html">
+      <div class="icon">⌨️</div>
+      <div class="badge">Typing</div>
+      <h2>Typing Rain</h2>
+      <p>Type the falling words before they hit the ground!</p>
+    </a>
+  </div>
+
+  <footer>More games coming soon 🚀</footer>
 </body>
 </html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Word Scramble</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;user-select:none}
+    a.back{position:fixed;top:16px;left:16px;color:#aaa;text-decoration:none;font-size:.9rem}
+    a.back:hover{color:#e94560}
+    h1{font-size:2.2rem;color:#e94560;margin-bottom:6px}
+    .subtitle{color:#888;font-size:.9rem;margin-bottom:28px}
+    .screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:480px}
+    .screen.active{display:flex}
+
+    /* HUD */
+    .hud{display:flex;justify-content:space-between;width:100%;margin-bottom:14px;font-size:1rem}
+    .hud span{color:#aaa}.hud span b{color:#eee}
+    .timer-bar-wrap{width:100%;height:8px;background:#0f3460;border-radius:4px;margin-bottom:22px;overflow:hidden}
+    .timer-bar{height:100%;background:#e94560;border-radius:4px;transition:width .1s linear,background .3s}
+
+    /* CARD */
+    .card{background:#16213e;border:2px solid #0f3460;border-radius:16px;padding:28px 32px;text-align:center;width:100%;margin-bottom:18px}
+    .hint{font-size:.85rem;color:#888;margin-bottom:10px;min-height:20px}
+    .scrambled{font-size:2.8rem;font-weight:bold;letter-spacing:8px;color:#f5a623;margin-bottom:20px;word-break:break-all}
+    .letter-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px}
+    .lbtn{background:#0f3460;border:2px solid #1a3a6e;color:#eee;border-radius:8px;padding:10px 14px;font-size:1.4rem;cursor:pointer;min-width:46px;transition:transform .1s,background .1s}
+    .lbtn:hover{background:#1a3a6e;transform:scale(1.08)}
+    .lbtn:disabled{opacity:.3;cursor:default;transform:none}
+    .answer-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;min-height:52px;margin-bottom:14px}
+    .answer-slot{width:44px;height:50px;background:#1a1a2e;border:2px solid #0f3460;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:bold;cursor:pointer;transition:border-color .2s}
+    .answer-slot:hover{border-color:#e94560}
+    .answer-slot.filled{border-color:#4caf50}
+    .answer-slot.wrong{border-color:#e94560;animation:shake .3s}
+
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+    .row-btns{display:flex;gap:10px;justify-content:center}
+    .action-btn{background:#e94560;color:#fff;border:none;border-radius:10px;padding:11px 28px;font-size:1rem;cursor:pointer;transition:background .2s}
+    .action-btn:hover{background:#c73652}
+    .action-btn.secondary{background:#16213e;border:2px solid #0f3460;color:#eee}
+    .action-btn.secondary:hover{border-color:#e94560}
+
+    .feedback{font-size:1rem;min-height:24px;margin-bottom:6px;text-align:center}
+    .feedback.ok{color:#4caf50}.feedback.bad{color:#e94560}
+
+    /* RESULT */
+    .result-box{background:#16213e;border:2px solid #0f3460;border-radius:16px;padding:36px 40px;text-align:center;width:100%;margin-bottom:24px}
+    .result-box .big{font-size:4rem;margin-bottom:8px}
+    .result-box h2{font-size:1.6rem;margin-bottom:16px;color:#e94560}
+    .result-box .stats{font-size:1rem;color:#aaa;line-height:1.9}
+    .result-box .stats b{color:#eee}
+    .btn-row{display:flex;gap:12px;width:100%}
+    .btn-row button{flex:1;background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px;font-size:1rem;cursor:pointer;transition:border-color .2s}
+    .btn-row button:hover{border-color:#e94560}
+    .btn-row button.primary{background:#e94560;border-color:#e94560}
+    .btn-row button.primary:hover{background:#c73652}
+  </style>
+</head>
+<body>
+<a class="back" href="../index.html">← All Games</a>
+<h1>🔤 Word Scramble</h1>
+<p class="subtitle">Unscramble the letters to make a word!</p>
+
+<!-- START -->
+<div class="screen active" id="screen-start">
+  <p style="color:#aaa;margin-bottom:18px">Pick a level:</p>
+  <div style="display:flex;gap:12px;margin-bottom:26px;flex-wrap:wrap;justify-content:center">
+    <button class="action-btn secondary selected" data-lvl="easy" onclick="pickLvl(this)">😊 Easy<br><small style="color:#888">3–4 letter words</small></button>
+    <button class="action-btn secondary" data-lvl="medium" onclick="pickLvl(this)">🔥 Medium<br><small style="color:#888">5–6 letter words</small></button>
+    <button class="action-btn secondary" data-lvl="hard" onclick="pickLvl(this)">💀 Hard<br><small style="color:#888">7+ letter words</small></button>
+  </div>
+  <button class="action-btn" id="btn-start">Start Game</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="hud">
+    <span>📖 Word <b id="hud-word">1</b>/10</span>
+    <span>✅ <b id="hud-score">0</b></span>
+    <span>⏱ <b id="hud-time">30</b>s</span>
+  </div>
+  <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar"></div></div>
+  <div class="card">
+    <div class="hint" id="hint-text"></div>
+    <div class="scrambled" id="scrambled"></div>
+    <div class="answer-row" id="answer-row"></div>
+    <div class="letter-btns" id="letter-btns"></div>
+    <div class="feedback" id="feedback"></div>
+    <div class="row-btns">
+      <button class="action-btn" id="btn-check">Check ✓</button>
+      <button class="action-btn secondary" id="btn-clear">Clear</button>
+      <button class="action-btn secondary" id="btn-skip">Skip →</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-box">
+    <div class="big" id="result-emoji">🎉</div>
+    <h2 id="result-title">Well done!</h2>
+    <div class="stats" id="result-stats"></div>
+  </div>
+  <div class="btn-row">
+    <button class="primary" id="btn-again">▶ Play Again</button>
+    <button id="btn-menu">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+const WORDS = {
+  easy:[
+    {w:'CAT',h:'A furry pet that meows'},
+    {w:'DOG',h:'A loyal four-legged friend'},
+    {w:'SUN',h:'It shines in the sky'},
+    {w:'BEE',h:'It makes honey'},
+    {w:'FROG',h:'It jumps and says ribbit'},
+    {w:'BIRD',h:'It has wings and feathers'},
+    {w:'FISH',h:'It swims in water'},
+    {w:'CAKE',h:'A sweet birthday treat'},
+    {w:'TREE',h:'It has leaves and branches'},
+    {w:'STAR',h:'Twinkle twinkle little...'},
+    {w:'BEAR',h:'A big furry animal that hibernates'},
+    {w:'DUCK',h:'It quacks and loves water'},
+    {w:'BOOK',h:'You read this'},
+    {w:'BALL',h:'You throw and catch this'},
+    {w:'MILK',h:'Cows give us this drink'},
+  ],
+  medium:[
+    {w:'APPLE',h:'A red or green fruit'},
+    {w:'TIGER',h:'An orange striped big cat'},
+    {w:'OCEAN',h:'A huge body of salt water'},
+    {w:'PIANO',h:'A musical instrument with keys'},
+    {w:'CLOUD',h:'White fluffy things in the sky'},
+    {w:'GRAPE',h:'Small round fruit that grows in bunches'},
+    {w:'HORSE',h:'You can ride this animal'},
+    {w:'LEMON',h:'A sour yellow fruit'},
+    {w:'MOUSE',h:'A small rodent or computer tool'},
+    {w:'BREAD',h:'You make sandwiches with this'},
+    {w:'CHAIR',h:'You sit on this'},
+    {w:'PIZZA',h:'A circular Italian food'},
+    {w:'RIVER',h:'Water that flows to the sea'},
+    {w:'SNAKE',h:'A long reptile with no legs'},
+    {w:'WITCH',h:'A Halloween costume classic'},
+  ],
+  hard:[
+    {w:'DOLPHIN',h:'A smart ocean mammal'},
+    {w:'PENGUIN',h:'A black and white bird that cannot fly'},
+    {w:'RAINBOW',h:'Colorful arc after rain'},
+    {w:'BLANKET',h:'Keeps you warm at night'},
+    {w:'CHICKEN',h:'A farm bird that lays eggs'},
+    {w:'LIBRARY',h:'A place full of books'},
+    {w:'MONSTER',h:'A scary creature'},
+    {w:'PYRAMID',h:'An ancient Egyptian structure'},
+    {w:'LANTERN',h:'A light you can carry'},
+    {w:'VOLCANO',h:'A mountain that can erupt'},
+    {w:'CAPTAIN',h:'The leader of a ship'},
+    {w:'CRYSTAL',h:'A clear shiny mineral'},
+    {w:'DRAGONS',h:'Mythical fire-breathing creatures'},
+    {w:'KITCHEN',h:'Where food is cooked'},
+    {w:'JOURNEY',h:'A long trip or adventure'},
+  ],
+};
+
+const $ = id => document.getElementById(id);
+let lvl='easy', wordList=[], wordIdx=0, score=0, skipped=0;
+let currentWord, chosenLetters=[], letterBtns=[];
+let timer, timeLeft, totalTime;
+
+function pickLvl(btn){
+  document.querySelectorAll('[data-lvl]').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  lvl=btn.dataset.lvl;
+}
+
+function show(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('screen-'+name).classList.add('active');
+}
+
+$('btn-start').addEventListener('click',startGame);
+$('btn-again').addEventListener('click',startGame);
+$('btn-menu').addEventListener('click',()=>show('start'));
+$('btn-check').addEventListener('click',checkAnswer);
+$('btn-clear').addEventListener('click',clearAnswer);
+$('btn-skip').addEventListener('click',skipWord);
+
+function startGame(){
+  const pool=[...WORDS[lvl]].sort(()=>Math.random()-.5);
+  wordList=pool.slice(0,10);
+  wordIdx=0; score=0; skipped=0;
+  show('game');
+  loadWord();
+}
+
+function loadWord(){
+  if(wordIdx>=wordList.length){endGame();return;}
+  clearInterval(timer);
+  currentWord=wordList[wordIdx].w;
+  chosenLetters=[];
+  const scrambled=shuffle([...currentWord]);
+  $('scrambled').textContent=scrambled.join(' ');
+  $('hint-text').textContent='💡 '+wordList[wordIdx].h;
+  $('feedback').textContent='';
+  $('feedback').className='feedback';
+  buildSlots();
+  buildLetterBtns(scrambled);
+  updateHud();
+  totalTime=30; timeLeft=30;
+  $('hud-time').textContent=timeLeft;
+  $('timer-bar').style.width='100%';
+  timer=setInterval(()=>{
+    timeLeft--;
+    $('hud-time').textContent=timeLeft;
+    const pct=(timeLeft/totalTime)*100;
+    $('timer-bar').style.width=pct+'%';
+    $('timer-bar').style.background=pct>40?'#e94560':pct>20?'#f5a623':'#ff3b30';
+    if(timeLeft<=0){skipWord();}
+  },1000);
+}
+
+function shuffle(arr){
+  // ensure scrambled is never same as original
+  let s;
+  do { s=[...arr].sort(()=>Math.random()-.5); }
+  while(s.join('')===arr.join('') && arr.length>1);
+  return s;
+}
+
+function buildSlots(){
+  const row=$('answer-row');
+  row.innerHTML='';
+  for(let i=0;i<currentWord.length;i++){
+    const s=document.createElement('div');
+    s.className='answer-slot';
+    s.dataset.idx=i;
+    s.addEventListener('click',()=>removeLetterAt(i));
+    row.appendChild(s);
+  }
+}
+
+function buildLetterBtns(letters){
+  const wrap=$('letter-btns');
+  wrap.innerHTML='';
+  letterBtns=[];
+  letters.forEach((l,i)=>{
+    const b=document.createElement('button');
+    b.className='lbtn'; b.textContent=l; b.dataset.li=i;
+    b.addEventListener('click',()=>addLetter(l,i,b));
+    wrap.appendChild(b);
+    letterBtns.push(b);
+  });
+}
+
+function addLetter(l,li,btn){
+  const slotIdx=chosenLetters.length;
+  if(slotIdx>=currentWord.length) return;
+  chosenLetters.push({l,li});
+  btn.disabled=true;
+  const slot=$('answer-row').children[slotIdx];
+  slot.textContent=l;
+  slot.classList.add('filled');
+}
+
+function removeLetterAt(idx){
+  if(idx>=chosenLetters.length) return;
+  // remove from idx onward and re-enable buttons
+  const removed=chosenLetters.splice(idx);
+  removed.forEach(({li})=>{ letterBtns[li].disabled=false; });
+  const slots=$('answer-row').children;
+  for(let i=idx;i<currentWord.length;i++){
+    slots[i].textContent='';
+    slots[i].classList.remove('filled','wrong');
+  }
+}
+
+function clearAnswer(){
+  chosenLetters=[];
+  letterBtns.forEach(b=>b.disabled=false);
+  buildSlots();
+}
+
+function checkAnswer(){
+  if(chosenLetters.length<currentWord.length){
+    setFeedback('Fill in all the letters first! 😊','bad');
+    return;
+  }
+  const guess=chosenLetters.map(c=>c.l).join('');
+  if(guess===currentWord){
+    clearInterval(timer);
+    score++;
+    setFeedback('✅ Correct! Well done!','ok');
+    wordIdx++;
+    setTimeout(loadWord,900);
+  } else {
+    setFeedback('❌ Not quite — try again!','bad');
+    Array.from($('answer-row').children).forEach(s=>s.classList.add('wrong'));
+    setTimeout(()=>Array.from($('answer-row').children).forEach(s=>s.classList.remove('wrong')),400);
+  }
+}
+
+function skipWord(){
+  clearInterval(timer);
+  skipped++;
+  setFeedback('The word was: '+currentWord,'bad');
+  wordIdx++;
+  setTimeout(loadWord,1000);
+}
+
+function setFeedback(msg,cls){
+  $('feedback').textContent=msg;
+  $('feedback').className='feedback '+cls;
+}
+
+function updateHud(){
+  $('hud-word').textContent=wordIdx+1;
+  $('hud-score').textContent=score;
+}
+
+function endGame(){
+  clearInterval(timer);
+  show('result');
+  let emoji='😅',title='Nice try!';
+  if(score===10){emoji='🏆';title='Perfect score!';}
+  else if(score>=7){emoji='🎉';title='Great job!';}
+  else if(score>=4){emoji='👍';title='Good effort!';}
+  $('result-emoji').textContent=emoji;
+  $('result-title').textContent=title;
+  $('result-stats').innerHTML=`<b>${score}</b> out of 10 correct<br>Skipped / timed out: <b>${skipped}</b><br>Level: <b>${lvl.charAt(0).toUpperCase()+lvl.slice(1)}</b>`;
+}
+</script>
+</body>
+</html>
