@@ -1,4 +1,4 @@
-const CACHE = 'html-games-v1';
+const CACHE = 'html-games-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -8,6 +8,9 @@ const ASSETS = [
   '/memory-match/index.html',
   '/word-scramble/index.html',
   '/typing-rain/index.html',
+  '/penguin-pursuit/index.html',
+  '/lost-in-migration/index.html',
+  '/eye-spy/index.html',
 ];
 
 // Install: cache all assets

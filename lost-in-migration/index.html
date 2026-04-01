@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lost in Migration</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml"/>
+  <link rel="manifest" href="../manifest.json"/>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("../sw.js");</script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;user-select:none}
+    a.back{position:fixed;top:16px;left:16px;color:#aaa;text-decoration:none;font-size:.9rem}
+    a.back:hover{color:#e94560}
+    h1{font-size:2.2rem;color:#e94560;margin-bottom:6px}
+    .subtitle{color:#888;font-size:.9rem;margin-bottom:24px;text-align:center;line-height:1.5}
+    .screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:520px}
+    .screen.active{display:flex}
+
+    /* START */
+    .diff-grid{display:flex;gap:12px;margin-bottom:26px;flex-wrap:wrap;justify-content:center}
+    .diff-btn{background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px 20px;cursor:pointer;font-size:.95rem;text-align:center;transition:border-color .2s,background .2s;min-width:115px}
+    .diff-btn:hover,.diff-btn.selected{border-color:#e94560;background:#0f3460}
+    .diff-btn small{display:block;color:#888;font-size:.75rem;margin-top:4px}
+    .start-btn{background:#e94560;color:#fff;border:none;border-radius:10px;padding:14px 44px;font-size:1.2rem;cursor:pointer;transition:background .2s}
+    .start-btn:hover{background:#c73652}
+
+    /* HUD */
+    .hud{display:flex;justify-content:space-between;width:100%;margin-bottom:10px;font-size:1rem}
+    .hud span{color:#aaa}.hud span b{color:#eee}
+    .timer-bar-wrap{width:100%;height:8px;background:#0f3460;border-radius:4px;margin-bottom:20px;overflow:hidden}
+    .timer-bar{height:100%;background:#e94560;border-radius:4px;transition:width .05s linear}
+
+    /* FORMATION */
+    .formation-wrap{background:#0d0d1a;border:2px solid #0f3460;border-radius:16px;padding:30px 20px;margin-bottom:18px;width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .bird-row{display:flex;gap:14px;align-items:center;justify-content:center}
+
+    .bird{font-size:2.4rem;line-height:1;transition:transform .15s}
+    .bird.center{font-size:3rem;filter:brightness(1.4)}
+
+    /* distractors slightly dimmed */
+    .bird.flanker{opacity:.85}
+
+    .instruction{font-size:.9rem;color:#aaa;margin-bottom:6px;text-align:center}
+
+    /* ARROW BUTTONS */
+    .arrow-grid{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(3,64px);gap:8px;margin-top:4px}
+    .arrow-btn{background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:12px;font-size:1.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s,transform .1s}
+    .arrow-btn:hover{background:#0f3460;border-color:#e94560}
+    .arrow-btn:active{transform:scale(.93)}
+    .arrow-btn.correct{background:#0d3b1e;border-color:#4caf50;animation:pop .3s}
+    .arrow-btn.wrong{background:#3b0d0d;border-color:#e94560;animation:shake .3s}
+    .arrow-btn.disabled{pointer-events:none;opacity:.4}
+    @keyframes pop{0%,100%{transform:scale(1)}50%{transform:scale(1.15)}}
+    @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+    .score-flash{font-size:1rem;min-height:24px;text-align:center;margin-top:8px;transition:opacity .3s}
+    .score-flash.correct-f{color:#4caf50}
+    .score-flash.wrong-f{color:#e94560}
+
+    /* RESULT */
+    .result-box{background:#16213e;border:2px solid #0f3460;border-radius:16px;padding:36px 40px;text-align:center;width:100%;margin-bottom:24px}
+    .result-box .big{font-size:4rem;margin-bottom:8px}
+    .result-box h2{font-size:1.6rem;margin-bottom:16px;color:#e94560}
+    .result-box .stats{font-size:1rem;color:#aaa;line-height:1.9}
+    .result-box .stats b{color:#eee}
+    .btn-row{display:flex;gap:12px;width:100%}
+    .btn-row button{flex:1;background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px;font-size:1rem;cursor:pointer;transition:border-color .2s}
+    .btn-row button:hover{border-color:#e94560}
+    .btn-row button.primary{background:#e94560;border-color:#e94560}
+    .btn-row button.primary:hover{background:#c73652}
+  </style>
+</head>
+<body>
+<a class="back" href="../index.html">← All Games</a>
+<h1>🦅 Lost in Migration</h1>
+<p class="subtitle">Which way is the <b>middle bird</b> flying?<br><small>Ignore the birds around it!</small></p>
+
+<!-- START -->
+<div class="screen active" id="screen-start">
+  <div class="diff-grid">
+    <button class="diff-btn selected" data-diff="easy">😊 Easy<br><small>4 directions · 5s</small></button>
+    <button class="diff-btn" data-diff="medium">🔥 Medium<br><small>8 directions · 3s</small></button>
+    <button class="diff-btn" data-diff="hard">💀 Hard<br><small>8 dirs · 2s · 5 birds</small></button>
+  </div>
+  <button class="start-btn" id="btn-start">Start Game</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="hud">
+    <span>🎯 Q <b id="hud-q">1</b>/20</span>
+    <span>✅ <b id="hud-score">0</b></span>
+    <span>❌ <b id="hud-wrong">0</b></span>
+  </div>
+  <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar"></div></div>
+
+  <div class="formation-wrap">
+    <div class="bird-row" id="bird-row-top"></div>
+    <div class="bird-row" id="bird-row-mid"></div>
+    <div class="bird-row" id="bird-row-bot"></div>
+  </div>
+
+  <div class="instruction">Tap the arrow matching the <b>middle bird</b></div>
+  <div class="arrow-grid" id="arrow-grid"></div>
+  <div class="score-flash" id="score-flash"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-box">
+    <div class="big" id="result-emoji">🏆</div>
+    <h2 id="result-title">Well done!</h2>
+    <div class="stats" id="result-stats"></div>
+  </div>
+  <div class="btn-row">
+    <button class="primary" id="btn-again">▶ Play Again</button>
+    <button id="btn-menu">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+// Directions: [rotation-degrees, arrow-emoji, label]
+const DIRS8 = [
+  {deg:0,   arrow:'⬆️', label:'up'},
+  {deg:45,  arrow:'↗️', label:'up-right'},
+  {deg:90,  arrow:'➡️', label:'right'},
+  {deg:135, arrow:'↘️', label:'down-right'},
+  {deg:180, arrow:'⬇️', label:'down'},
+  {deg:225, arrow:'↙️', label:'down-left'},
+  {deg:270, arrow:'⬅️', label:'left'},
+  {deg:315, arrow:'↖️', label:'up-left'},
+];
+const DIRS4 = [DIRS8[0],DIRS8[2],DIRS8[4],DIRS8[6]]; // up right down left
+
+const DIFF={
+  easy:  {dirs:DIRS4, flankers:2, rows:1, timeMs:5000, questions:20},
+  medium:{dirs:DIRS8, flankers:2, rows:1, timeMs:3000, questions:20},
+  hard:  {dirs:DIRS8, flankers:4, rows:3, timeMs:2000, questions:20},
+};
+
+const $=id=>document.getElementById(id);
+let diff='easy', cfg;
+let qNum=0, score=0, wrong=0;
+let centerDir, questionTimer, timerStart, timerRaf;
+let answered=false;
+
+document.querySelectorAll('.diff-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('selected'));
+  b.classList.add('selected'); diff=b.dataset.diff;
+}));
+$('btn-start').addEventListener('click',startGame);
+$('btn-again').addEventListener('click',startGame);
+$('btn-menu').addEventListener('click',()=>{clearTimeout(questionTimer);cancelAnimationFrame(timerRaf);show('start');});
+
+function show(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('screen-'+n).classList.add('active');}
+
+function startGame(){
+  cfg=DIFF[diff]; qNum=0; score=0; wrong=0;
+  show('game'); nextQuestion();
+}
+
+function nextQuestion(){
+  if(qNum>=cfg.questions){endGame();return;}
+  qNum++;
+  answered=false;
+  $('hud-q').textContent=qNum;
+  $('score-flash').textContent='';
+  $('score-flash').className='score-flash';
+
+  // Pick center direction
+  centerDir=cfg.dirs[Math.floor(Math.random()*cfg.dirs.length)];
+
+  // Build formation
+  buildFormation();
+  buildArrows();
+
+  // Timer bar animation
+  const start=Date.now();
+  const total=cfg.timeMs;
+  cancelAnimationFrame(timerRaf);
+  function animBar(){
+    const pct=Math.max(0,1-(Date.now()-start)/total);
+    $('timer-bar').style.width=(pct*100)+'%';
+    $('timer-bar').style.background=pct>.5?'#e94560':pct>.25?'#f5a623':'#ff3b30';
+    if(pct>0&&!answered) timerRaf=requestAnimationFrame(animBar);
+    else if(pct<=0&&!answered) timeOut();
+  }
+  animBar();
+}
+
+function buildFormation(){
+  // always show a middle row; for hard mode also top/bottom rows
+  const useRows = cfg.rows===3 ? ['top','mid','bot'] : ['mid'];
+  ['top','mid','bot'].forEach(r=>{ $('bird-row-'+r).innerHTML=''; $('bird-row-'+r).style.display='none'; });
+
+  useRows.forEach(rowId=>{
+    const row=$('bird-row-'+rowId);
+    row.style.display='flex';
+    const isMid=rowId==='mid';
+    const count=isMid? cfg.flankers+1 : cfg.flankers; // center bird only in mid row
+    for(let i=0;i<count;i++){
+      const isCenterBird = isMid && i===Math.floor(count/2);
+      const dir = isCenterBird ? centerDir : cfg.dirs[Math.floor(Math.random()*cfg.dirs.length)];
+      const el=document.createElement('div');
+      el.className='bird '+(isCenterBird?'center':'flanker');
+      el.style.transform=`rotate(${dir.deg}deg)`;
+      el.textContent='🐦';
+      row.appendChild(el);
+    }
+  });
+}
+
+function buildArrows(){
+  const grid=$('arrow-grid');
+  grid.innerHTML='';
+  // lay out arrows in a 3×3 grid matching compass positions
+  // positions: [row,col] for each of 8 dirs + empty center
+  const layout=[
+    ['up-left','up','up-right'],
+    ['left',   null, 'right'],
+    ['down-left','down','down-right'],
+  ];
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++){
+    const lbl=layout[r][c];
+    const btn=document.createElement('button');
+    if(!lbl){
+      btn.className='arrow-btn disabled';
+      btn.style.visibility='hidden';
+      btn.textContent='';
+    } else {
+      const dir=DIRS8.find(d=>d.label===lbl);
+      // only show button if direction is in current dir set
+      const active=cfg.dirs.find(d=>d.label===lbl);
+      btn.className='arrow-btn'+(active?'':' disabled');
+      btn.textContent=dir?dir.arrow:'';
+      btn.dataset.label=lbl;
+      if(active) btn.addEventListener('click',()=>onAnswer(lbl,btn));
+    }
+    grid.appendChild(btn);
+  }
+}
+
+function onAnswer(lbl, btn){
+  if(answered) return;
+  answered=true;
+  cancelAnimationFrame(timerRaf);
+  $('timer-bar').style.width='0%';
+  const correct=lbl===centerDir.label;
+  if(correct){
+    score++;
+    btn.classList.add('correct');
+    flashScore('+1 ✅','correct-f');
+  } else {
+    wrong++;
+    btn.classList.add('wrong');
+    // highlight correct button
+    document.querySelectorAll('.arrow-btn').forEach(b=>{
+      if(b.dataset.label===centerDir.label) b.classList.add('correct');
+    });
+    flashScore('Wrong ❌','wrong-f');
+  }
+  $('hud-score').textContent=score;
+  $('hud-wrong').textContent=wrong;
+  setTimeout(nextQuestion, 800);
+}
+
+function timeOut(){
+  if(answered) return;
+  answered=true;
+  wrong++;
+  $('hud-wrong').textContent=wrong;
+  document.querySelectorAll('.arrow-btn').forEach(b=>{
+    if(b.dataset.label===centerDir.label) b.classList.add('correct');
+  });
+  flashScore('Too slow! ⏱','wrong-f');
+  setTimeout(nextQuestion, 800);
+}
+
+function flashScore(msg,cls){
+  const el=$('score-flash');
+  el.textContent=msg; el.className='score-flash '+cls;
+}
+
+function endGame(){
+  const acc=Math.round((score/(score+wrong))*100)||0;
+  let emoji='😅',title='Nice try!';
+  if(score>=18){emoji='🏆';title='Perfect focus!';}
+  else if(score>=14){emoji='🎉';title='Great job!';}
+  else if(score>=10){emoji='👍';title='Good effort!';}
+  $('result-emoji').textContent=emoji;
+  $('result-title').textContent=title;
+  $('result-stats').innerHTML=`<b>${score}</b>/20 correct<br>Accuracy: <b>${acc}%</b><br>Difficulty: <b>${diff.charAt(0).toUpperCase()+diff.slice(1)}</b>`;
+  show('result');
+}
+</script>
+</body>
+</html>

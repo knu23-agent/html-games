@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Penguin Pursuit</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml"/>
+  <link rel="manifest" href="../manifest.json"/>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("../sw.js");</script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;user-select:none}
+    a.back{position:fixed;top:16px;left:16px;color:#aaa;text-decoration:none;font-size:.9rem;z-index:10}
+    a.back:hover{color:#e94560}
+    h1{font-size:2.2rem;color:#e94560;margin-bottom:6px}
+    .subtitle{color:#888;font-size:.9rem;margin-bottom:24px;text-align:center}
+    .screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:520px}
+    .screen.active{display:flex}
+
+    /* START */
+    .diff-grid{display:flex;gap:12px;margin-bottom:26px;flex-wrap:wrap;justify-content:center}
+    .diff-btn{background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px 20px;cursor:pointer;font-size:.95rem;text-align:center;transition:border-color .2s,background .2s;min-width:110px}
+    .diff-btn:hover,.diff-btn.selected{border-color:#e94560;background:#0f3460}
+    .diff-btn small{display:block;color:#888;font-size:.75rem;margin-top:4px}
+    .start-btn{background:#e94560;color:#fff;border:none;border-radius:10px;padding:14px 44px;font-size:1.2rem;cursor:pointer;transition:background .2s}
+    .start-btn:hover{background:#c73652}
+
+    /* HUD */
+    .hud{display:flex;justify-content:space-between;width:100%;margin-bottom:12px;font-size:1rem}
+    .hud span{color:#aaa}.hud span b{color:#eee}
+
+    /* STAGE */
+    .stage-wrap{position:relative;width:100%;max-width:480px;height:380px;background:#0d0d1a;border-radius:16px;border:2px solid #0f3460;overflow:hidden;margin-bottom:16px}
+
+    .penguin{position:absolute;font-size:2.6rem;cursor:pointer;transition:left .4s cubic-bezier(.4,0,.2,1), top .4s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;align-items:center;line-height:1}
+    .penguin .crown{font-size:1rem;visibility:hidden;line-height:1}
+    .penguin.marked .crown{visibility:visible}
+    .penguin.locked{cursor:default}
+
+    /* Status overlay */
+    .overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(13,13,26,.85);border-radius:14px;z-index:5;font-size:1.4rem;font-weight:bold;text-align:center;padding:20px;opacity:0;pointer-events:none;transition:opacity .3s}
+    .overlay.show{opacity:1;pointer-events:all}
+    .overlay.green{color:#4caf50}
+    .overlay.red{color:#e94560}
+
+    .status-bar{font-size:1.1rem;color:#f5a623;margin-bottom:14px;min-height:28px;text-align:center}
+
+    /* RESULT */
+    .result-box{background:#16213e;border:2px solid #0f3460;border-radius:16px;padding:36px 40px;text-align:center;width:100%;margin-bottom:24px}
+    .result-box .big{font-size:4rem;margin-bottom:8px}
+    .result-box h2{font-size:1.6rem;margin-bottom:16px;color:#e94560}
+    .result-box .stats{font-size:1rem;color:#aaa;line-height:1.9}
+    .result-box .stats b{color:#eee}
+    .btn-row{display:flex;gap:12px;width:100%}
+    .btn-row button{flex:1;background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px;font-size:1rem;cursor:pointer;transition:border-color .2s}
+    .btn-row button:hover{border-color:#e94560}
+    .btn-row button.primary{background:#e94560;border-color:#e94560}
+    .btn-row button.primary:hover{background:#c73652}
+  </style>
+</head>
+<body>
+<a class="back" href="../index.html">← All Games</a>
+<h1>🐧 Penguin Pursuit</h1>
+<p class="subtitle">Remember which penguin has the crown 👑<br>then pick it after they shuffle!</p>
+
+<!-- START -->
+<div class="screen active" id="screen-start">
+  <div class="diff-grid">
+    <button class="diff-btn selected" data-diff="easy">😊 Easy<br><small>3 penguins · slow</small></button>
+    <button class="diff-btn" data-diff="medium">🔥 Medium<br><small>5 penguins · faster</small></button>
+    <button class="diff-btn" data-diff="hard">💀 Hard<br><small>7 penguins · fast</small></button>
+  </div>
+  <button class="start-btn" id="btn-start">Start Game</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="hud">
+    <span>🎯 Round <b id="hud-round">1</b>/10</span>
+    <span>✅ <b id="hud-score">0</b></span>
+    <span>❌ <b id="hud-wrong">0</b></span>
+  </div>
+  <div class="status-bar" id="status-bar">Get ready…</div>
+  <div class="stage-wrap" id="stage">
+    <div class="overlay" id="overlay"></div>
+  </div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-box">
+    <div class="big" id="result-emoji">🏆</div>
+    <h2 id="result-title">Well done!</h2>
+    <div class="stats" id="result-stats"></div>
+  </div>
+  <div class="btn-row">
+    <button class="primary" id="btn-again">▶ Play Again</button>
+    <button id="btn-menu">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+const DIFF={
+  easy:  {count:3, shuffles:3, shuffleMs:500, showMs:1500},
+  medium:{count:5, shuffles:5, shuffleMs:380, showMs:1200},
+  hard:  {count:7, shuffles:8, shuffleMs:260, showMs:900},
+};
+const PENGUIN_EMOJIS=['🐧','🐧','🐧','🐧','🐧','🐧','🐧'];
+
+let diff='easy', cfg, round=0, score=0, wrong=0, markedIdx=0;
+let penguins=[], locked=false;
+const $=id=>document.getElementById(id);
+
+function show(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('screen-'+n).classList.add('active');}
+
+document.querySelectorAll('.diff-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('selected'));
+  b.classList.add('selected'); diff=b.dataset.diff;
+}));
+$('btn-start').addEventListener('click',startGame);
+$('btn-again').addEventListener('click',startGame);
+$('btn-menu').addEventListener('click',()=>show('start'));
+
+function startGame(){
+  cfg=DIFF[diff]; round=0; score=0; wrong=0;
+  show('game'); nextRound();
+}
+
+function getPositions(n, W, H){
+  // spread penguins evenly
+  const positions=[];
+  const cols=Math.ceil(Math.sqrt(n));
+  const rows=Math.ceil(n/cols);
+  const pw=72, ph=80;
+  const gx=(W-cols*pw)/(cols+1);
+  const gy=(H-rows*ph)/(rows+1);
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    if(positions.length>=n) break;
+    positions.push({x: gx+(c*(pw+gx)), y: gy+(r*(ph+gy))});
+  }
+  return positions;
+}
+
+function buildPenguins(){
+  const stage=$('stage');
+  // remove old
+  stage.querySelectorAll('.penguin').forEach(p=>p.remove());
+  penguins=[];
+  const W=stage.offsetWidth||480, H=stage.offsetHeight||380;
+  const positions=getPositions(cfg.count, W, H);
+  markedIdx=Math.floor(Math.random()*cfg.count);
+  for(let i=0;i<cfg.count;i++){
+    const el=document.createElement('div');
+    el.className='penguin locked'+(i===markedIdx?' marked':'');
+    el.innerHTML=`<span class="crown">👑</span><span>🐧</span>`;
+    el.style.left=positions[i].x+'px';
+    el.style.top=positions[i].y+'px';
+    el.dataset.idx=i;
+    el.addEventListener('click',()=>onPick(parseInt(el.dataset.idx)));
+    stage.appendChild(el);
+    penguins.push({el, x:positions[i].x, y:positions[i].y});
+  }
+}
+
+function nextRound(){
+  round++;
+  if(round>10){endGame();return;}
+  $('hud-round').textContent=round;
+  $('hud-score').textContent=score;
+  $('hud-wrong').textContent=wrong;
+  hideOverlay();
+  buildPenguins();
+  locked=true;
+  setStatus('👀 Remember the crowned penguin!','');
+  // show crown, then hide and shuffle
+  setTimeout(()=>{
+    hideCrowns();
+    setStatus('🔀 Shuffling…','');
+    doShuffles(cfg.shuffles, ()=>{
+      locked=false;
+      setStatus('👆 Which penguin had the crown?','');
+    });
+  }, cfg.showMs);
+}
+
+function hideCrowns(){
+  penguins.forEach(p=>p.el.classList.remove('marked'));
+}
+
+function doShuffles(remaining, done){
+  if(remaining<=0){done();return;}
+  // pick two random penguins to swap
+  const a=Math.floor(Math.random()*penguins.length);
+  let b=a;
+  while(b===a) b=Math.floor(Math.random()*penguins.length);
+  const pa=penguins[a], pb=penguins[b];
+  // swap marked index tracking
+  if(parseInt(pa.el.dataset.idx)===markedIdx) markedIdx=parseInt(pb.el.dataset.idx);
+  else if(parseInt(pb.el.dataset.idx)===markedIdx) markedIdx=parseInt(pa.el.dataset.idx);
+  // swap positions
+  const tx=pa.x, ty=pa.y;
+  pa.x=pb.x; pa.y=pb.y;
+  pb.x=tx; pb.y=ty;
+  pa.el.style.left=pa.x+'px'; pa.el.style.top=pa.y+'px';
+  pb.el.style.left=pb.x+'px'; pb.el.style.top=pb.y+'px';
+  setTimeout(()=>doShuffles(remaining-1,done), cfg.shuffleMs+50);
+}
+
+function onPick(idx){
+  if(locked) return;
+  locked=true;
+  if(idx===markedIdx){
+    score++;
+    penguins[idx].el.classList.add('marked');
+    showOverlay('✅ Correct!','green');
+  } else {
+    wrong++;
+    penguins.forEach(p=>{if(parseInt(p.el.dataset.idx)===markedIdx) p.el.classList.add('marked');});
+    showOverlay('❌ Wrong!\nThe crown was here 👑','red');
+  }
+  $('hud-score').textContent=score;
+  $('hud-wrong').textContent=wrong;
+  setTimeout(nextRound, 1200);
+}
+
+function setStatus(msg){$('status-bar').textContent=msg;}
+function showOverlay(msg,cls){const o=$('overlay');o.textContent=msg;o.className='overlay show '+cls;}
+function hideOverlay(){const o=$('overlay');o.className='overlay';}
+
+function endGame(){
+  show('result');
+  let emoji='😅',title='Nice try!';
+  if(score===10){emoji='🏆';title='Perfect tracker!';}
+  else if(score>=7){emoji='🎉';title='Great job!';}
+  else if(score>=5){emoji='👍';title='Good effort!';}
+  $('result-emoji').textContent=emoji;
+  $('result-title').textContent=title;
+  $('result-stats').innerHTML=`<b>${score}</b>/10 correct<br>Difficulty: <b>${diff.charAt(0).toUpperCase()+diff.slice(1)}</b>`;
+}
+</script>
+</body>
+</html>

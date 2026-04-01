@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Eye Spy</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml"/>
+  <link rel="manifest" href="../manifest.json"/>
+  <script>if("serviceWorker"in navigator)navigator.serviceWorker.register("../sw.js");</script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px;user-select:none}
+    a.back{position:fixed;top:16px;left:16px;color:#aaa;text-decoration:none;font-size:.9rem;z-index:10}
+    a.back:hover{color:#e94560}
+    h1{font-size:2.2rem;color:#e94560;margin-bottom:6px}
+    .subtitle{color:#888;font-size:.9rem;margin-bottom:24px;text-align:center;line-height:1.6}
+    .screen{display:none;flex-direction:column;align-items:center;width:100%;max-width:520px}
+    .screen.active{display:flex}
+
+    .diff-grid{display:flex;gap:12px;margin-bottom:26px;flex-wrap:wrap;justify-content:center}
+    .diff-btn{background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px 20px;cursor:pointer;font-size:.95rem;text-align:center;transition:border-color .2s,background .2s;min-width:115px}
+    .diff-btn:hover,.diff-btn.selected{border-color:#e94560;background:#0f3460}
+    .diff-btn small{display:block;color:#888;font-size:.75rem;margin-top:4px}
+    .start-btn{background:#e94560;color:#fff;border:none;border-radius:10px;padding:14px 44px;font-size:1.2rem;cursor:pointer;transition:background .2s}
+    .start-btn:hover{background:#c73652}
+
+    .hud{display:flex;justify-content:space-between;width:100%;margin-bottom:12px;font-size:1rem}
+    .hud span{color:#aaa}.hud span b{color:#eee}
+
+    .stage-wrap{position:relative;width:100%;max-width:480px;height:360px;background:#0d0d1a;border-radius:16px;border:2px solid #0f3460;overflow:hidden;margin-bottom:14px;touch-action:none}
+
+    .dot{position:absolute;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;transition:none}
+    .dot.target{box-shadow:0 0 0 3px #f5a623}
+    .dot.decoy{opacity:.85}
+    .dot.clicked-ok{background:rgba(76,175,80,.4)!important;box-shadow:0 0 0 4px #4caf50}
+    .dot.clicked-wrong{animation:shake .3s}
+    @keyframes shake{0%,100%{transform:translate(0,0)}25%{transform:translate(-5px,0)}75%{transform:translate(5px,0)}}
+
+    .status-bar{font-size:1rem;color:#f5a623;min-height:26px;text-align:center;margin-bottom:8px}
+    .phase-label{font-size:1.3rem;font-weight:bold;color:#eee;margin-bottom:12px;min-height:32px;text-align:center}
+
+    .result-box{background:#16213e;border:2px solid #0f3460;border-radius:16px;padding:36px 40px;text-align:center;width:100%;margin-bottom:24px}
+    .result-box .big{font-size:4rem;margin-bottom:8px}
+    .result-box h2{font-size:1.6rem;margin-bottom:16px;color:#e94560}
+    .result-box .stats{font-size:1rem;color:#aaa;line-height:1.9}
+    .result-box .stats b{color:#eee}
+    .btn-row{display:flex;gap:12px;width:100%}
+    .btn-row button{flex:1;background:#16213e;border:2px solid #0f3460;color:#eee;border-radius:10px;padding:12px;font-size:1rem;cursor:pointer;transition:border-color .2s}
+    .btn-row button:hover{border-color:#e94560}
+    .btn-row button.primary{background:#e94560;border-color:#e94560}
+    .btn-row button.primary:hover{background:#c73652}
+  </style>
+</head>
+<body>
+<a class="back" href="../index.html">← All Games</a>
+<h1>👁️ Eye Spy</h1>
+<p class="subtitle">Watch the glowing dots — they'll hide!<br>Then tap where they went.</p>
+
+<!-- START -->
+<div class="screen active" id="screen-start">
+  <div class="diff-grid">
+    <button class="diff-btn selected" data-diff="easy">😊 Easy<br><small>1 target · slow</small></button>
+    <button class="diff-btn" data-diff="medium">🔥 Medium<br><small>2 targets · faster</small></button>
+    <button class="diff-btn" data-diff="hard">💀 Hard<br><small>3 targets · fast</small></button>
+  </div>
+  <button class="start-btn" id="btn-start">Start Game</button>
+</div>
+
+<!-- GAME -->
+<div class="screen" id="screen-game">
+  <div class="hud">
+    <span>🎯 Round <b id="hud-round">1</b>/10</span>
+    <span>✅ <b id="hud-score">0</b></span>
+    <span>❌ <b id="hud-miss">0</b></span>
+  </div>
+  <div class="phase-label" id="phase-label">Get ready…</div>
+  <div class="status-bar" id="status-bar"></div>
+  <div class="stage-wrap" id="stage"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="screen-result">
+  <div class="result-box">
+    <div class="big" id="result-emoji">🏆</div>
+    <h2 id="result-title">Well done!</h2>
+    <div class="stats" id="result-stats"></div>
+  </div>
+  <div class="btn-row">
+    <button class="primary" id="btn-again">▶ Play Again</button>
+    <button id="btn-menu">🏠 Menu</button>
+  </div>
+</div>
+
+<script>
+const DIFF={
+  easy:  {targets:1,decoys:4,  showMs:1800,moveMs:3000,speed:1.2,rounds:10},
+  medium:{targets:2,decoys:5,  showMs:1400,moveMs:2600,speed:1.8,rounds:10},
+  hard:  {targets:3,decoys:6,  showMs:1000,moveMs:2200,speed:2.4,rounds:10},
+};
+const COLORS=['#f5a623','#2196f3','#4caf50','#e94560','#9c27b0','#00bcd4','#ff5722','#e91e63'];
+const EMOJIS=['⭐','🔵','🟢','🔴','🟣','🟡','🟠','⚪'];
+
+const $=id=>document.getElementById(id);
+let diff='easy',cfg,round=0,score=0,miss=0;
+let dots=[], raf, phase='idle', toFind=0, foundCount=0;
+
+document.querySelectorAll('.diff-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.diff-btn').forEach(x=>x.classList.remove('selected'));
+  b.classList.add('selected'); diff=b.dataset.diff;
+}));
+$('btn-start').addEventListener('click',startGame);
+$('btn-again').addEventListener('click',startGame);
+$('btn-menu').addEventListener('click',()=>{cancelAnimationFrame(raf);show('start');});
+
+function show(n){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$('screen-'+n).classList.add('active');}
+
+function startGame(){
+  cfg=DIFF[diff]; round=0; score=0; miss=0;
+  show('game'); nextRound();
+}
+
+function nextRound(){
+  if(round>=cfg.rounds){endGame();return;}
+  round++;
+  phase='show';
+  foundCount=0;
+  toFind=cfg.targets;
+  $('hud-round').textContent=round;
+  $('hud-score').textContent=score;
+  $('hud-miss').textContent=miss;
+  $('phase-label').textContent='👀 Watch the glowing dots!';
+  $('status-bar').textContent='';
+  buildDots();
+  // reveal targets
+  dots.filter(d=>d.isTarget).forEach(d=>{d.el.classList.add('target');d.el.style.opacity='1';});
+  // after showMs, hide targets and start moving
+  setTimeout(()=>{
+    dots.filter(d=>d.isTarget).forEach(d=>{
+      d.el.classList.remove('target');
+      d.el.style.boxShadow='';
+    });
+    phase='move';
+    $('phase-label').textContent='👀 Keep tracking…';
+    startMoving();
+    setTimeout(()=>{
+      stopMoving();
+      // stop all and let user pick
+      phase='pick';
+      $('phase-label').textContent='👆 Tap the targets! ('+cfg.targets+' left)';
+      dots.forEach(d=>{d.el.style.cursor='pointer';});
+    }, cfg.moveMs);
+  }, cfg.showMs);
+}
+
+function buildDots(){
+  const stage=$('stage');
+  stage.innerHTML=''; dots=[];
+  const W=stage.offsetWidth||480, H=stage.offsetHeight||360;
+  const R=28;
+  const total=cfg.targets+cfg.decoys;
+  const colorPick=[...COLORS].sort(()=>Math.random()-.5);
+  for(let i=0;i<total;i++){
+    const isTarget=i<cfg.targets;
+    const x=R+Math.random()*(W-2*R);
+    const y=R+Math.random()*(H-2*R);
+    const vx=(Math.random()-.5)*cfg.speed*2;
+    const vy=(Math.random()-.5)*cfg.speed*2;
+    const color=colorPick[i%colorPick.length];
+    const el=document.createElement('div');
+    el.className='dot '+(isTarget?'target':'decoy');
+    el.style.cssText=`width:${R*2}px;height:${R*2}px;left:${x-R}px;top:${y-R}px;background:${color};opacity:1`;
+    el.addEventListener('click',()=>onDotClick(d));
+    stage.appendChild(el);
+    const d={el,x,y,vx,vy,isTarget,R,color,found:false};
+    dots.push(d);
+  }
+}
+
+let lastTime=null;
+function startMoving(){
+  lastTime=null;
+  function loop(ts){
+    if(!lastTime) lastTime=ts;
+    const dt=(ts-lastTime)/16;
+    lastTime=ts;
+    const stage=$('stage');
+    const W=stage.offsetWidth||480, H=stage.offsetHeight||360;
+    dots.forEach(d=>{
+      if(d.found) return;
+      d.x+=d.vx*dt;
+      d.y+=d.vy*dt;
+      if(d.x-d.R<0){d.x=d.R;d.vx=Math.abs(d.vx);}
+      if(d.x+d.R>W){d.x=W-d.R;d.vx=-Math.abs(d.vx);}
+      if(d.y-d.R<0){d.y=d.R;d.vy=Math.abs(d.vy);}
+      if(d.y+d.R>H){d.y=H-d.R;d.vy=-Math.abs(d.vy);}
+      d.el.style.left=(d.x-d.R)+'px';
+      d.el.style.top=(d.y-d.R)+'px';
+    });
+    if(phase==='move') raf=requestAnimationFrame(loop);
+  }
+  raf=requestAnimationFrame(loop);
+}
+
+function stopMoving(){
+  cancelAnimationFrame(raf);
+  dots.forEach(d=>{ d.vx=0; d.vy=0; });
+}
+
+function onDotClick(d){
+  if(phase!=='pick'||d.found) return;
+  if(d.isTarget){
+    d.found=true;
+    d.el.classList.add('clicked-ok');
+    d.el.style.boxShadow='0 0 0 4px #4caf50';
+    foundCount++;
+    $('status-bar').textContent='✅ Got one! '+(cfg.targets-foundCount)+' left';
+    if(foundCount>=cfg.targets){
+      score++;
+      $('hud-score').textContent=score;
+      $('phase-label').textContent='🎉 Round complete!';
+      $('status-bar').textContent='';
+      setTimeout(nextRound, 900);
+    }
+  } else {
+    miss++;
+    d.el.classList.add('clicked-wrong');
+    $('hud-miss').textContent=miss;
+    $('status-bar').textContent='❌ That\'s a decoy!';
+    setTimeout(()=>d.el.classList.remove('clicked-wrong'),400);
+    // after 3 wrong clicks on a round, reveal and move on
+    if(miss>0 && miss%3===0){
+      $('phase-label').textContent='💡 Here they were…';
+      dots.filter(x=>x.isTarget&&!x.found).forEach(x=>{x.el.style.boxShadow='0 0 0 4px #f5a623';});
+      setTimeout(nextRound,1200);
+    }
+  }
+}
+
+function endGame(){
+  let emoji='😅',title='Nice try!';
+  if(score===cfg.rounds){emoji='🏆';title='Perfect tracker!';}
+  else if(score>=cfg.rounds*.8){emoji='🎉';title='Great job!';}
+  else if(score>=cfg.rounds*.5){emoji='👍';title='Good effort!';}
+  $('result-emoji').textContent=emoji;
+  $('result-title').textContent=title;
+  $('result-stats').innerHTML=`<b>${score}</b>/${cfg.rounds} rounds won<br>Wrong clicks: <b>${miss}</b><br>Difficulty: <b>${diff.charAt(0).toUpperCase()+diff.slice(1)}</b>`;
+  show('result');
+}
+</script>
+</body>
+</html>
