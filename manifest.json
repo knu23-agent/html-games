@@ -1,0 +1,12 @@
+{
+  "name": "HTML Games",
+  "short_name": "Games",
+  "description": "Fun educational games for kids",
+  "start_url": "/html-games/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#e94560",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
